@@ -23,6 +23,30 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
+app.get("/crear-tabla", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS personas (
+        id SERIAL PRIMARY KEY,
+        nombre VARCHAR(100) NOT NULL,
+        documento VARCHAR(50),
+        telefono VARCHAR(20),
+        foto_url TEXT,
+        fecha_registro TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    res.json({
+      mensaje: "Tabla creada correctamente"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
