@@ -9,10 +9,12 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// Ruta principal
 app.get("/", (req, res) => {
   res.send("API funcionando");
 });
 
+// Prueba de conexión a PostgreSQL
 app.get("/test-db", async (req, res) => {
   try {
     const resultado = await pool.query("SELECT NOW()");
@@ -23,14 +25,15 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
+// Crear tabla (temporal)
 app.get("/crear-tabla", async (req, res) => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS personas (
         id SERIAL PRIMARY KEY,
-        nombre VARCHAR(100) NOT NULL,
-        documento VARCHAR(50),
-        telefono VARCHAR(20),
+        nombre VARCHAR(150) NOT NULL,
+        codigo_7 VARCHAR(7) NOT NULL,
+        numero_identidad VARCHAR(30) NOT NULL,
         foto_url TEXT,
         fecha_registro TIMESTAMP DEFAULT NOW()
       )
@@ -41,9 +44,104 @@ app.get("/crear-tabla", async (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       error: error.message
     });
+  }
+});
+
+// Crear persona
+app.post("/personas", async (req, res) => {
+  try {
+
+    const {
+      nombre,
+      codigo_7,
+      numero_identidad,
+      foto_url
+    } = req.body;
+
+    const resultado = await pool.query(
+      `
+      INSERT INTO personas
+      (
+        nombre,
+        codigo_7,
+        numero_identidad,
+        foto_url
+      )
+      VALUES ($1,$2,$3,$4)
+      RETURNING *
+      `,
+      [
+        nombre,
+        codigo_7,
+        numero_identidad,
+        foto_url
+      ]
+    );
+
+    res.status(201).json(resultado.rows[0]);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+});
+
+// Obtener todas las personas
+app.get("/personas", async (req, res) => {
+  try {
+
+    const resultado = await pool.query(
+      "SELECT * FROM personas ORDER BY id DESC"
+    );
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+});
+
+// Obtener una persona por id
+app.get("/personas/:id", async (req, res) => {
+  try {
+
+    const resultado = await pool.query(
+      "SELECT * FROM personas WHERE id = $1",
+      [req.params.id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        mensaje: "Persona no encontrada"
+      });
+    }
+
+    res.json(resultado.rows[0]);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: error.message
+    });
+
   }
 });
 
