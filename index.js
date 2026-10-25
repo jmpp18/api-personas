@@ -26,29 +26,34 @@ app.get("/test-db", async (req, res) => {
 });
 
 // Crear tabla (temporal)
-app.get("/crear-tabla", async (req, res) => {
+app.get("/recrear-tabla", async (req, res) => {
   try {
+
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS personas (
+      DROP TABLE IF EXISTS personas;
+    `);
+
+    await pool.query(`
+      CREATE TABLE personas (
         id SERIAL PRIMARY KEY,
         nombre VARCHAR(150) NOT NULL,
         codigo_7 VARCHAR(7) NOT NULL,
         numero_identidad VARCHAR(30) NOT NULL,
         foto_url TEXT,
         fecha_registro TIMESTAMP DEFAULT NOW()
-      )
+      );
     `);
 
     res.json({
-      mensaje: "Tabla creada correctamente"
+      mensaje: "Tabla recreada correctamente"
     });
 
   } catch (error) {
-    console.error(error);
 
     res.status(500).json({
       error: error.message
     });
+
   }
 });
 
