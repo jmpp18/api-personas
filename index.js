@@ -144,6 +144,25 @@ app.get("/personas/:id", async (req, res) => {
 
   }
 });
+app.get("/estructura", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'personas'
+      ORDER BY ordinal_position
+    `);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 
