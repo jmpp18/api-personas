@@ -1,5 +1,7 @@
 const express = require("express");
 const { Pool } = require("pg");
+const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
 
 const app = express();
 
@@ -7,6 +9,16 @@ app.use(express.json());
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+});
+//configuracion cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const upload = multer({
+  dest: "uploads/"
 });
 
 // Ruta principal
@@ -168,6 +180,38 @@ app.get("/estructura", async (req, res) => {
 
   }
 });
+//subir foto temp
+app.post(
+  "/subir-foto",
+  upload.single("foto"),
+  async (req, res) => {
+
+    try {
+
+      const resultado =
+        await cloudinary.uploader.upload(
+          req.file.path,
+          {
+            folder: "personas"
+          }
+        );
+
+      res.json({
+        url: resultado.secure_url
+      });
+
+    } catch (error) {
+
+      console.error(error);
+
+      res.status(500).json({
+        error: error.message
+      });
+
+    }
+
+  }
+);
 
 const PORT = process.env.PORT || 3000;
 
