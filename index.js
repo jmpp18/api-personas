@@ -100,6 +100,32 @@ app.post(
 
   }
 );
+//obtener datos
+app.get("/personas/codigo/:codigo", async (req, res) => {
+  try {
+
+    const resultado = await pool.query(
+      "SELECT * FROM personas WHERE codigo_7 = $1",
+      [req.params.codigo]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        mensaje: "Persona no encontrada"
+      });
+    }
+
+    res.json(resultado.rows[0]);
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+});
+
 // Obtener todas las personas
 app.get("/personas", async (req, res) => {
   try {
