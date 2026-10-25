@@ -7,18 +7,21 @@ const app = express();
 
 app.use(express.json());
 
+// PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
-//configuracion cloudinary
+
+// Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Multer
 const upload = multer({
-  dest: "uploads/"
+  dest: "uploads/",
 });
 
 // Ruta principal
@@ -26,93 +29,66 @@ app.get("/", (req, res) => {
   res.send("API funcionando");
 });
 
-// Prueba de conexión a PostgreSQL
+// Test PostgreSQL
 app.get("/test-db", async (req, res) => {
   try {
     const resultado = await pool.query("SELECT NOW()");
     res.json(resultado.rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json(error.message);
-  }
-});
-
-// Crear tabla (temporal)
-app.get("/recrear-tabla", async (req, res) => {
-  try {
-
-    await pool.query(`
-      DROP TABLE IF EXISTS personas;
-    `);
-
-    await pool.query(`
-      CREATE TABLE personas (
-        id SERIAL PRIMARY KEY,
-        nombre VARCHAR(150) NOT NULL,
-        codigo_7 VARCHAR(7) NOT NULL,
-        numero_identidad VARCHAR(30) NOT NULL,
-        foto_url TEXT,
-        fecha_registro TIMESTAMP DEFAULT NOW()
-      );
-    `);
-
-    res.json({
-      mensaje: "Tabla recreada correctamente"
-    });
-
-  } catch (error) {
-
     res.status(500).json({
       error: error.message
     });
-
   }
 });
 
-// Crear persona
-app.post("/personas", async (req, res) => {
-  try {
+// Crear persona con foto
+app.post(
+  "/personas",
+  upload.single("foto"),
+  async (req, res) => {
 
-    const {
-      nombre,
-      codigo_7,
-      numero_identidad,
-      foto_url
-    } = req.body;
+    console.log("BODY:", req.body);
+    console.log("FILE:", req.file);
 
-    const resultado = await pool.query(
-      `
-      INSERT INTO personas
-      (
+    try {
+
+      if (!req.body) {
+        return res.status(400).json({
+          error: "req.body viene vacio"
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          error: "No se recibio la foto"
+        });
+      }
+
+      const {
+        nombre,
+        codigo_7,
+        numero_identidad
+      } = req.body;
+
+      res.json({
         nombre,
         codigo_7,
         numero_identidad,
-        foto_url
-      )
-      VALUES ($1,$2,$3,$4)
-      RETURNING *
-      `,
-      [
-        nombre,
-        codigo_7,
-        numero_identidad,
-        foto_url
-      ]
-    );
+        archivo: req.file.originalname
+      });
 
-    res.status(201).json(resultado.rows[0]);
+    } catch (error) {
 
-  } catch (error) {
+      console.error(error);
 
-    console.error(error);
+      res.status(500).json({
+        error: error.message
+      });
 
-    res.status(500).json({
-      error: error.message
-    });
-
+    }
   }
-});
-
+);
 // Obtener todas las personas
 app.get("/personas", async (req, res) => {
   try {
@@ -134,7 +110,7 @@ app.get("/personas", async (req, res) => {
   }
 });
 
-// Obtener una persona por id
+// Obtener una persona por ID
 app.get("/personas/:id", async (req, res) => {
   try {
 
@@ -161,18 +137,30 @@ app.get("/personas/:id", async (req, res) => {
 
   }
 });
-app.get("/estructura", async (req, res) => {
-  try {
-    const resultado = await pool.query(`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'personas'
-      ORDER BY ordinal_position
-    `);
 
-    res.json(resultado.rows);
+// Eliminar persona
+app.delete("/personas/:id", async (req, res) => {
+  try {
+
+    const resultado = await pool.query(
+      "DELETE FROM personas WHERE id = $1 RETURNING *",
+      [req.params.id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        mensaje: "Persona no encontrada"
+      });
+    }
+
+    res.json({
+      mensaje: "Persona eliminada",
+      persona: resultado.rows[0]
+    });
 
   } catch (error) {
+
+    console.error(error);
 
     res.status(500).json({
       error: error.message
@@ -180,38 +168,6 @@ app.get("/estructura", async (req, res) => {
 
   }
 });
-//subir foto temp
-app.post(
-  "/subir-foto",
-  upload.single("foto"),
-  async (req, res) => {
-
-    try {
-
-      const resultado =
-        await cloudinary.uploader.upload(
-          req.file.path,
-          {
-            folder: "personas"
-          }
-        );
-
-      res.json({
-        url: resultado.secure_url
-      });
-
-    } catch (error) {
-
-      console.error(error);
-
-      res.status(500).json({
-        error: error.message
-      });
-
-    }
-
-  }
-);
 
 const PORT = process.env.PORT || 3000;
 
