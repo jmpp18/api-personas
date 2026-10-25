@@ -48,22 +48,7 @@ app.post(
   upload.single("foto"),
   async (req, res) => {
 
-    console.log("BODY:", req.body);
-    console.log("FILE:", req.file);
-
     try {
-
-      if (!req.body) {
-        return res.status(400).json({
-          error: "req.body viene vacio"
-        });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({
-          error: "No se recibio la foto"
-        });
-      }
 
       const {
         nombre,
@@ -71,12 +56,37 @@ app.post(
         numero_identidad
       } = req.body;
 
-      res.json({
-        nombre,
-        codigo_7,
-        numero_identidad,
-        archivo: req.file.originalname
-      });
+      const resultadoCloudinary =
+        await cloudinary.uploader.upload(
+          req.file.path,
+          {
+            folder: "personas"
+          }
+        );
+
+      const resultado = await pool.query(
+        `
+        INSERT INTO personas
+        (
+          nombre,
+          codigo_7,
+          numero_identidad,
+          foto_url
+        )
+        VALUES ($1,$2,$3,$4)
+        RETURNING *
+        `,
+        [
+          nombre,
+          codigo_7,
+          numero_identidad,
+          resultadoCloudinary.secure_url
+        ]
+      );
+
+      res.status(201).json(
+        resultado.rows[0]
+      );
 
     } catch (error) {
 
@@ -87,6 +97,7 @@ app.post(
       });
 
     }
+
   }
 );
 // Obtener todas las personas
